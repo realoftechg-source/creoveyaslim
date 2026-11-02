@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>try{var t=localStorage.getItem('creoveya_theme');if(t!=='dark'&&t!=='light')t='light';document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
+<title>Buy More Credits — Creoveya</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/img/logo.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/instrument-serif-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/css/style.css?v=4">
+</head>
+<body>
+<nav class="navbar"><div class="navbar-inner">
+  <a class="brand" href="/dashboard"><img src="/img/logo.svg" class="brand-mark" alt="Creoveya">Creoveya</a>
+  <a href="/dashboard" class="btn btn-outline btn-sm">Back to Dashboard</a>
+</div></nav>
+
+<div class="container" style="padding-top: 40px; padding-bottom: 60px; max-width: 760px;">
+  <div class="text-center mb-16">
+    <h1>Choose a plan</h1>
+    <p>Select an activation or top-up plan, complete payment, and upload your receipt. An admin will review and approve it — your credits will be added after approval.</p>
+  </div>
+
+  <div id="pendingNotice" class="card hidden" style="margin-bottom: 24px; border-color: var(--warning);">
+    <span class="badge badge-warning">Pending Review</span>
+    <p class="mt-8" style="margin-bottom:0;">You already have a payment submitted and awaiting admin approval. You'll get access as soon as it's reviewed.</p>
+  </div>
+
+  <!-- Step 1: Plan -->
+  <div class="card mb-16" id="stepPlan">
+    <h3>1. Choose your plan</h3>
+    <h4>Activation Plans</h4>
+    <div class="grid grid-2" id="activationPlanOptions"></div>
+    <h4 class="mt-16 hidden" id="topupPlansHeading">Top-Up Plans</h4>
+    <div class="grid grid-2" id="planOptions"></div>
+  </div>
+
+  <!-- Step 2: Method -->
+  <div class="card mb-16 hidden" id="stepMethod">
+    <h3>2. Choose a payment method</h3>
+    <div class="grid grid-2" id="methodTypeOptions">
+      <button type="button" class="btn btn-outline btn-block" data-type="bank">🏦 Bank Transfer</button>
+      <button type="button" class="btn btn-outline btn-block" data-type="crypto">₿ Cryptocurrency</button>
+    </div>
+    <div class="mt-16" id="methodDetailOptions"></div>
+  </div>
+
+  <!-- Step 3: Instructions + receipt -->
+  <div class="card hidden" id="stepReceipt">
+    <h3>3. Send payment &amp; upload your receipt</h3>
+    <div class="card" id="instructionsBox" style="background: var(--bg-soft);"></div>
+    <div class="error-banner" id="submitError"></div>
+    <div class="success-banner" id="submitSuccess"></div>
+    <form id="receiptForm" class="mt-16">
+      <div class="form-group">
+        <label for="receiptFile">Upload receipt / payment screenshot</label>
+        <input type="file" id="receiptFile" accept="image/png,image/jpeg,image/webp,image/heic,image/heif,application/pdf" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="submitPaymentBtn">Submit Payment for Review</button>
+    </form>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let plans = [];
+let activationPlans = [];
+let methods = [];
+let selectedPlanId = null;
+let selectedPlanType = 'topup';
+let selectedMethodId = null;
+
+async function init() {
+  const user = await getSession();
+  if (!user) return window.location.href = '/login.html';
+
+  const results = await Promise.allSettled([
+    apiFetch('/api/payments/plans'),
+    apiFetch('/api/payments/topup-plans'),
+    apiFetch('/api/payments/methods'),
+    apiFetch('/api/payments/my-submissions'),
+  ]);
+  activationPlans = results[0].status === 'fulfilled' ? results[0].value.plans || [] : [];
+  plans = results[1].status === 'fulfilled' ? results[1].value.plans || [] : [];
+  methods = results[2].status === 'fulfilled' ? results[2].value.methods || [] : [];
+
+  const submissions = results[3].status === 'fulfilled' ? results[3].value.submissions || [] : [];
+  const hasPending = submissions.some((s) => s.status === 'pending');
+  if (hasPending) document.getElementById('pendingNotice').classList.remove('hidden');
+
+  renderPlans();
+}
+
+function renderPlans() {
+  document.getElementById('topupPlansHeading').classList.toggle('hidden', plans.length === 0);
+  document.getElementById('activationPlanOptions').innerHTML = activationPlans.map((p) => `
+    <div class="card" data-plan="${p.id}" data-type="activation" style="cursor:pointer; border-width:2px;">
+      <h3>${p.name}</h3>
+      <div style="font-size:1.6rem; font-weight:800; color:var(--blue-900);">$${p.price}</div>
+      <p>${p.credits.toLocaleString()} credits · ≈ ${p.minutes} min</p>
+      ${p.description ? `<p class="text-muted">${p.description}</p>` : ''}
+    </div>
+  `).join('');
+  document.getElementById('planOptions').innerHTML = plans.map((p) => `
+    <div class="card" data-plan="${p.id}" data-type="topup" style="cursor:pointer; border-width:2px;">
+      <h3>${p.name}</h3>
+      <div style="font-size:1.6rem; font-weight:800; color:var(--blue-900);">$${p.price}</div>
+      <p>${p.credits.toLocaleString()} credits · ≈ ${p.minutes} min</p>
+      ${p.description ? `<p class="text-muted">${p.description}</p>` : ''}
+    </div>
+  `).join('');
+  document.querySelectorAll('[data-plan][data-type]').forEach((el) => {
+    el.addEventListener('click', () => selectPlan(parseInt(el.dataset.plan, 10), el.dataset.type));
+  });
+}
+
+function selectPlan(id, type) {
+  selectedPlanId = id;
+  selectedPlanType = type;
+  document.querySelectorAll('[data-plan][data-type]').forEach((el) => {
+    el.style.borderColor = el.dataset.type === type && parseInt(el.dataset.plan, 10) === id
+      ? 'var(--blue-600)' : 'var(--border)';
+  });
+  document.getElementById('stepMethod').classList.remove('hidden');
+}
+
+document.querySelectorAll('#methodTypeOptions button').forEach((btn) => {
+  btn.addEventListener('click', () => renderMethodDetails(btn.dataset.type));
+});
+
+function renderMethodDetails(type) {
+  const filtered = methods.filter((m) => m.type === type);
+  const box = document.getElementById('methodDetailOptions');
+  if (!filtered.length) {
+    box.innerHTML = `<p class="text-muted">No ${type === 'bank' ? 'bank accounts' : 'crypto methods'} are configured right now. Try the other option or contact support.</p>`;
+    return;
+  }
+  box.innerHTML = filtered.map((m) => `
+    <div class="card mt-16" data-method="${m.id}" style="cursor:pointer; border-width:2px;">
+      ${type === 'bank'
+        ? `<strong>${m.label || m.bankName}</strong><p>${m.bankName} · ${m.accountName}<br>Acct: ${m.accountNumber}${m.routingSwift ? ` · ${m.routingSwift}` : ''}</p>`
+        : `<strong>${m.label || m.cryptoCurrency}</strong><p>${m.cryptoCurrency} address:<br><code style="word-break:break-all;">${m.walletAddress}</code>${m.networkNote ? `<br><span class="text-muted">${m.networkNote}</span>` : ''}</p>`
+      }
+    </div>
+  `).join('');
+  document.querySelectorAll('[data-method]').forEach((el) => {
+    el.addEventListener('click', () => selectMethod(parseInt(el.dataset.method, 10), type));
+  });
+}
+
+function selectMethod(id, type) {
+  selectedMethodId = id;
+  document.querySelectorAll('[data-method]').forEach((el) => {
+    el.style.borderColor = parseInt(el.dataset.method, 10) === id ? 'var(--blue-600)' : 'var(--border)';
+  });
+  const m = methods.find((x) => x.id === id);
+  const box = document.getElementById('instructionsBox');
+  box.innerHTML = type === 'bank'
+    ? `<h4>Send payment via bank transfer</h4><p><strong>Bank:</strong> ${m.bankName}<br><strong>Account name:</strong> ${m.accountName}<br><strong>Account number:</strong> ${m.accountNumber}${m.routingSwift ? `<br><strong>Routing/SWIFT:</strong> ${m.routingSwift}` : ''}</p><p class="text-muted">Once sent, upload your receipt below.</p>`
+    : `<h4>Send payment via ${m.cryptoCurrency}</h4><p><strong>Wallet address:</strong><br><code style="word-break:break-all;">${m.walletAddress}</code></p>${m.networkNote ? `<p class="text-muted">${m.networkNote}</p>` : ''}<p class="text-muted">Once sent, upload your receipt/transaction screenshot below.</p>`;
+  document.getElementById('stepReceipt').classList.remove('hidden');
+  document.getElementById('stepReceipt').scrollIntoView({ behavior: 'smooth' });
+}
+
+document.getElementById('receiptForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('submitError');
+  const okEl = document.getElementById('submitSuccess');
+  const submitBtn = document.getElementById('submitPaymentBtn');
+  errEl.classList.remove('show');
+  okEl.classList.remove('show');
+
+  if (!selectedPlanId || !selectedMethodId) {
+    errEl.textContent = 'Please choose a plan and a payment method first.';
+    errEl.classList.add('show');
+    return;
+  }
+  const file = document.getElementById('receiptFile').files[0];
+  if (!file) return;
+
+  if (submitBtn.disabled) return;
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Submitting…';
+
+  const fd = new FormData();
+  fd.append('planId', selectedPlanId);
+  fd.append('planType', selectedPlanType);
+  fd.append('methodId', selectedMethodId);
+  fd.append('receipt', file);
+
+  try {
+    await apiFetch('/api/payments/submit', { method: 'POST', body: fd });
+    okEl.textContent = 'Payment submitted successfully! Your request has been sent to our team for review — you\'ll get access as soon as it\'s approved.';
+    okEl.classList.add('show');
+    document.getElementById('receiptForm').reset();
+    document.getElementById('pendingNotice').classList.remove('hidden');
+    submitBtn.textContent = '✓ Submitted';
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.add('show');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit Payment for Review';
+  }
+});
+
+init();
+</script>
+</body>
+</html>

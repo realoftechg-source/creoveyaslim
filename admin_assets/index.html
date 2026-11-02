@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>try{var t=localStorage.getItem('creoveya_theme');if(t!=='dark'&&t!=='light')t='light';document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
+<title>Admin — Creoveya</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/img/logo.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/instrument-serif-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/css/style.css?v=4">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="app-sidebar" id="sidebar">
+    <a class="brand" href="/admin_dashboard"><img src="/img/logo.svg" class="brand-mark" alt="Creoveya">Creoveya Admin</a>
+    <button class="sidebar-link active" data-section="overview"><span class="icon">📊</span>Overview</button>
+    <button class="sidebar-link" data-section="users"><span class="icon">👥</span>Users</button>
+    <button class="sidebar-link" data-section="payments"><span class="icon">🧾</span>Payment Approvals</button>
+    <button class="sidebar-link" data-section="activity"><span class="icon">📋</span>Activity History</button>
+    <button class="sidebar-link" data-section="images"><span class="icon">🖼️</span>User Images</button>
+    <button class="sidebar-link" data-section="plans"><span class="icon">💳</span>Activation Plans</button>
+    <button class="sidebar-link" data-section="topups"><span class="icon">⚡</span>Credit Top-Up</button>
+    <button class="sidebar-link" data-section="broadcast"><span class="icon">📢</span>Broadcast Message</button>
+    <button class="sidebar-link" data-section="methods"><span class="icon">🏦</span>Payment Methods</button>
+    <button class="sidebar-link" data-section="settings"><span class="icon">⚙️</span>Platform Settings</button>
+    <button class="sidebar-link" data-section="myaccount"><span class="icon">🔐</span>My Login</button>
+    <div class="sidebar-divider"></div>
+    <a class="sidebar-link" href="/" target="_blank"><span class="icon">🌐</span>View Site</a>
+    <button class="sidebar-link" id="adminLogout"><span class="icon">🚪</span>Log Out</button>
+  </aside>
+
+  <main class="app-main">
+    <div class="app-topbar">
+      <div class="flex items-center gap-12">
+        <button class="menu-toggle" id="menuToggle">☰</button>
+        <div><h1 id="sectionTitle">Overview</h1><p class="text-muted" id="sectionSubtitle">Platform activity at a glance.</p></div>
+      </div>
+      <div class="topbar-right" id="topbarRight"><span class="badge badge-neutral">Admin</span></div>
+    </div>
+    <div class="app-content" id="sectionContent"></div>
+  </main>
+</div>
+
+<div class="modal-backdrop" id="modalBackdrop">
+  <div class="modal" id="modalBody"></div>
+</div>
+
+<script src="/js/common.js"></script>
+<script src="/admin_dashboard/admin.js"></script>
+</body>
+</html>

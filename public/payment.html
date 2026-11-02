@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>try{var t=localStorage.getItem('creoveya_theme');if(t!=='dark'&&t!=='light')t='light';document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
+<title>Choose a Plan — Creoveya</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/img/logo.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/instrument-serif-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/css/style.css?v=4">
+<style>
+  body {
+    animation: fadeIn 0.6s ease-out;
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  .container {
+    animation: slideInDown 0.7s ease-out;
+  }
+  @keyframes slideInDown {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  [data-plan] {
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    position: relative;
+    animation: scaleIn 0.4s ease-out;
+  }
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  [data-plan]:nth-child(1) { animation-delay: 0.1s; }
+  [data-plan]:nth-child(2) { animation-delay: 0.2s; }
+  [data-plan]:nth-child(3) { animation-delay: 0.3s; }
+  [data-plan]:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 32px rgba(16, 25, 58, 0.12);
+  }
+  [data-plan][style*="border-color: var(--blue-600)"] {
+    background: linear-gradient(135deg, var(--bg-soft) 0%, rgba(232, 69, 44, 0.06) 100%);
+    transform: scale(1.02);
+  }
+</style>
+</head>
+<body>
+<nav class="navbar"><div class="navbar-inner">
+  <a class="brand" href="/"><img src="/img/logo.svg" class="brand-mark" alt="Creoveya">Creoveya</a>
+  <button class="btn btn-outline btn-sm" id="logoutTop">Log Out</button>
+</div></nav>
+
+<div class="container" style="padding-top: 40px; padding-bottom: 60px; max-width: 760px;">
+  <div class="text-center mb-16">
+    <h1>Choose an activation plan to get started</h1>
+    <p>Select an activation plan, complete payment, and upload your receipt. An admin will review and approve it — your dashboard unlocks right after.</p>
+  </div>
+
+  <div id="pendingNotice" class="card hidden" style="margin-bottom: 24px; border-color: var(--warning);">
+    <span class="badge badge-warning">Pending Review</span>
+    <p class="mt-8" style="margin-bottom:0;">You already have a payment submitted and awaiting admin approval. You'll get access as soon as it's reviewed.</p>
+  </div>
+
+  <!-- Step 1: Plan -->
+  <div class="card mb-16" id="stepPlan">
+    <h3>1. Choose your plan</h3>
+    <div class="grid grid-2" id="planOptions"></div>
+  </div>
+
+  <!-- Top-Up Plans (if already activated) -->
+  <div class="card mb-16 hidden" id="stepTopUp">
+    <h3>Or add credits anytime with a top-up plan</h3>
+    <p class="text-muted">Already have an active account? Top up your credits instantly.</p>
+    <div class="grid grid-2" id="topupPlanOptions"></div>
+  </div>
+
+  <!-- Step 2: Method -->
+  <div class="card mb-16 hidden" id="stepMethod">
+    <h3>2. Choose a payment method</h3>
+    <div class="grid grid-2" id="methodTypeOptions">
+      <button type="button" class="btn btn-outline btn-block" data-type="bank">🏦 Bank Transfer</button>
+      <button type="button" class="btn btn-outline btn-block" data-type="crypto">₿ Cryptocurrency</button>
+    </div>
+    <div class="mt-16" id="methodDetailOptions"></div>
+  </div>
+
+  <!-- Step 3: Instructions + receipt -->
+  <div class="card hidden" id="stepReceipt">
+    <h3>3. Send payment &amp; upload your receipt</h3>
+    <div class="card" id="instructionsBox" style="background: var(--bg-soft);"></div>
+    <div class="error-banner" id="submitError"></div>
+    <div class="success-banner" id="submitSuccess"></div>
+    <form id="receiptForm" class="mt-16">
+      <div class="form-group">
+        <label for="receiptFile">Upload receipt / payment screenshot</label>
+        <input type="file" id="receiptFile" accept="image/png,image/jpeg,image/webp,image/heic,image/heif,application/pdf" required>
+      </div>
+      <button type="submit" class="btn btn-primary btn-block" id="submitPaymentBtn">Submit Payment for Review</button>
+    </form>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script>
+let plans = [];
+let topupPlans = [];
+let methods = [];
+let selectedPlanId = null;
+let selectedPlanType = 'activation'; // 'activation' or 'topup'
+let selectedMethodId = null;
+
+async function init() {
+  const user = await getSession();
+  if (!user) return window.location.href = '/login.html';
+
+  document.getElementById('logoutTop').addEventListener('click', async () => {
+    await apiFetch('/auth/logout', { method: 'POST' });
+    window.location.href = '/';
+  });
+
+  try {
+    // Always load activation plans first - this is critical
+    const plansData = await apiFetch('/api/payments/plans');
+    plans = plansData.plans || [];
+  } catch (err) {
+    console.error('Failed to load activation plans:', err);
+    plans = [];
+  }
+
+  try {
+    // Load topup plans - but don't break if this fails
+    const topupData = await apiFetch('/api/payments/topup-plans');
+    topupPlans = topupData.plans || [];
+  } catch (err) {
+    console.error('Failed to load topup plans:', err);
+    topupPlans = [];
+  }
+
+  try {
+    const methodsData = await apiFetch('/api/payments/methods');
+    methods = methodsData.methods || [];
+  } catch (err) {
+    console.error('Failed to load payment methods:', err);
+    methods = [];
+  }
+
+  try {
+    const subsData = await apiFetch('/api/payments/my-submissions');
+    const hasPending = subsData.submissions && subsData.submissions.some((s) => s.status === 'pending');
+    if (hasPending) document.getElementById('pendingNotice').classList.remove('hidden');
+  } catch (err) {
+    console.error('Failed to load submissions:', err);
+  }
+
+  // Check if user already has active access (for showing topup only)
+  if (user.hasActiveAccess && !user.isTrialPlan) {
+    renderTopupOnly(topupPlans);
+    return;
+  }
+
+  // Otherwise show normal flow
+  renderPlans();
+  if (user.hasActiveAccess && !user.isTrialPlan && topupPlans.length) renderTopupPlans();
+}
+
+function renderTopupOnly(topupPlans) {
+  // For users who already have activation, show only topup section
+  document.getElementById('stepPlan').classList.add('hidden');
+  document.getElementById('stepTopUp').classList.remove('hidden');
+  document.querySelector('h1').textContent = 'Extend your credits with a top-up plan';
+  document.querySelector('.text-center p').textContent = 'Select a top-up plan, complete payment, and upload your receipt. Credits will be added to your account immediately after approval.';
+  renderTopupPlans();
+}
+
+function renderPlans() {
+  document.getElementById('planOptions').innerHTML = plans.map((p) => `
+    <div class="card" data-plan="${p.id}" data-type="activation" style="cursor:pointer; border-width:2px;">
+      ${p.badgeText ? `<span class="badge badge-warning">${p.badgeText}</span>` : ''}
+      <h3 style="margin:${p.badgeText ? '8px' : '0'} 0 0 0;">${p.name}</h3>
+      ${p.tagline ? `<p style="font-size:.9rem; color:var(--text-muted); margin-top:4px;">${p.tagline}</p>` : ''}
+      <div style="font-size:1.6rem; font-weight:800; color:var(--blue-900); margin-top:8px;">$${p.price}</div>
+      <p>${p.credits.toLocaleString()} credits · ≈ ${p.minutes} min</p>
+      ${p.description ? `<p class="text-muted">${p.description}</p>` : ''}
+      ${p.features && p.features.length ? `<ul style="margin:8px 0; padding-left:16px; font-size:.85rem; color:var(--text-muted);">${p.features.map(f => `<li>${f}</li>`).join('')}</ul>` : ''}
+    </div>
+  `).join('');
+  document.querySelectorAll('[data-plan][data-type="activation"]').forEach((el) => {
+    el.addEventListener('click', () => selectPlan(parseInt(el.dataset.plan, 10), 'activation'));
+  });
+}
+
+function renderTopupPlans() {
+  document.getElementById('stepTopUp').classList.remove('hidden');
+  document.getElementById('topupPlanOptions').innerHTML = topupPlans.map((p) => `
+    <div class="card" data-plan="${p.id}" data-type="topup" style="cursor:pointer; border-width:2px;">
+      ${p.badgeText ? `<span class="badge badge-warning">${p.badgeText}</span>` : ''}
+      <h3 style="margin:${p.badgeText ? '8px' : '0'} 0 0 0;">${p.name}</h3>
+      ${p.tagline ? `<p style="font-size:.9rem; color:var(--text-muted); margin-top:4px;">${p.tagline}</p>` : ''}
+      <div style="font-size:1.6rem; font-weight:800; color:var(--blue-900); margin-top:8px;">$${p.price}</div>
+      <p>${p.credits.toLocaleString()} credits · ${p.minutes} min</p>
+      ${p.description ? `<p class="text-muted">${p.description}</p>` : ''}
+      ${p.features && p.features.length ? `<ul style="margin:8px 0; padding-left:16px; font-size:.85rem; color:var(--text-muted);">${p.features.map(f => `<li>${f}</li>`).join('')}</ul>` : ''}
+    </div>
+  `).join('');
+  document.querySelectorAll('[data-plan][data-type="topup"]').forEach((el) => {
+    el.addEventListener('click', () => selectPlan(parseInt(el.dataset.plan, 10), 'topup'));
+  });
+}
+
+function selectPlan(id, type) {
+  selectedPlanId = id;
+  selectedPlanType = type;
+  document.querySelectorAll(`[data-plan][data-type="${type}"]`).forEach((el) => {
+    el.style.borderColor = parseInt(el.dataset.plan, 10) === id ? 'var(--blue-600)' : 'var(--border)';
+  });
+  document.getElementById('stepMethod').classList.remove('hidden');
+}
+
+document.querySelectorAll('#methodTypeOptions button').forEach((btn) => {
+  btn.addEventListener('click', () => renderMethodDetails(btn.dataset.type));
+});
+
+function renderMethodDetails(type) {
+  const filtered = methods.filter((m) => m.type === type);
+  const box = document.getElementById('methodDetailOptions');
+  if (!filtered.length) {
+    box.innerHTML = `<p class="text-muted">No ${type === 'bank' ? 'bank accounts' : 'crypto methods'} are configured right now. Try the other option or contact support.</p>`;
+    return;
+  }
+  box.innerHTML = filtered.map((m) => `
+    <div class="card mt-16" data-method="${m.id}" style="cursor:pointer; border-width:2px;">
+      ${type === 'bank'
+        ? `<strong>${m.label || m.bankName}</strong><p>${m.bankName} · ${m.accountName}<br>Acct: ${m.accountNumber}${m.routingSwift ? ` · ${m.routingSwift}` : ''}</p>`
+        : `<strong>${m.label || m.cryptoCurrency}</strong><p>${m.cryptoCurrency} address:<br><code style="word-break:break-all;">${m.walletAddress}</code>${m.networkNote ? `<br><span class="text-muted">${m.networkNote}</span>` : ''}</p>`
+      }
+    </div>
+  `).join('');
+  document.querySelectorAll('[data-method]').forEach((el) => {
+    el.addEventListener('click', () => selectMethod(parseInt(el.dataset.method, 10), type));
+  });
+}
+
+function selectMethod(id, type) {
+  selectedMethodId = id;
+  document.querySelectorAll('[data-method]').forEach((el) => {
+    el.style.borderColor = parseInt(el.dataset.method, 10) === id ? 'var(--blue-600)' : 'var(--border)';
+  });
+  const m = methods.find((x) => x.id === id);
+  const box = document.getElementById('instructionsBox');
+  box.innerHTML = type === 'bank'
+    ? `<h4>Send payment via bank transfer</h4><p><strong>Bank:</strong> ${m.bankName}<br><strong>Account name:</strong> ${m.accountName}<br><strong>Account number:</strong> ${m.accountNumber}${m.routingSwift ? `<br><strong>Routing/SWIFT:</strong> ${m.routingSwift}` : ''}</p><p class="text-muted">Once sent, upload your receipt below.</p>`
+    : `<h4>Send payment via ${m.cryptoCurrency}</h4><p><strong>Wallet address:</strong><br><code style="word-break:break-all;">${m.walletAddress}</code></p>${m.networkNote ? `<p class="text-muted">${m.networkNote}</p>` : ''}<p class="text-muted">Once sent, upload your receipt/transaction screenshot below.</p>`;
+  document.getElementById('stepReceipt').classList.remove('hidden');
+  document.getElementById('stepReceipt').scrollIntoView({ behavior: 'smooth' });
+}
+
+document.getElementById('receiptForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const errEl = document.getElementById('submitError');
+  const okEl = document.getElementById('submitSuccess');
+  const submitBtn = document.getElementById('submitPaymentBtn');
+  errEl.classList.remove('show');
+  okEl.classList.remove('show');
+
+  if (!selectedPlanId || !selectedMethodId) {
+    errEl.textContent = 'Please choose a plan and a payment method first.';
+    errEl.classList.add('show');
+    return;
+  }
+  const file = document.getElementById('receiptFile').files[0];
+  if (!file) return;
+
+  // Disable immediately so a slow connection or an impatient double-click
+  // can never fire this request twice — this was previously submitting
+  // the same payment multiple times to the admin.
+  if (submitBtn.disabled) return;
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Submitting…';
+
+  const fd = new FormData();
+  fd.append('planId', selectedPlanId);
+  fd.append('planType', selectedPlanType);
+  fd.append('methodId', selectedMethodId);
+  fd.append('receipt', file);
+
+  try {
+    await apiFetch('/api/payments/submit', { method: 'POST', body: fd });
+    okEl.textContent = 'Payment submitted successfully! Your request has been sent to our team for review — you\'ll get access as soon as it\'s approved.';
+    okEl.classList.add('show');
+    document.getElementById('receiptForm').reset();
+    document.getElementById('pendingNotice').classList.remove('hidden');
+    // Left disabled on success, with a clear final label — the
+    // submission already happened exactly once; there's nothing to
+    // resubmit unless the whole page is reloaded.
+    submitBtn.textContent = '✓ Submitted';
+  } catch (err) {
+    errEl.textContent = err.message;
+    errEl.classList.add('show');
+    // Only re-enable on failure, so the user can actually retry.
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Submit Payment for Review';
+  }
+});
+
+init();
+</script>
+</body>
+</html>

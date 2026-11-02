@@ -1,0 +1,11 @@
+node_modules/
+data/
+.env
+uploads/receipts/*
+uploads/looks/*
+!uploads/receipts/.gitkeep
+!uploads/looks/.gitkeep
+sessions.db
+*.log
+desktop-app/node_modules/
+desktop-app/dist/

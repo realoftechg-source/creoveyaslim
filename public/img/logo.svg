@@ -1,0 +1,13 @@
+<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="cvGrad" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#f0604a"/>
+      <stop offset="1" stop-color="#c63a24"/>
+    </linearGradient>
+  </defs>
+  <rect width="40" height="40" rx="11" fill="url(#cvGrad)"/>
+  <!-- Abstract mark: a stylized "C" aperture ring with a play/spark triangle,
+       reading as both "Creoveya" and a camera/live-broadcast symbol. -->
+  <path d="M27.6 12.2A9.6 9.6 0 1 0 27.6 27.8" stroke="#ffffff" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M18 15.2 L25.5 20 L18 24.8 Z" fill="#ffffff"/>
+</svg>

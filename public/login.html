@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>try{var t=localStorage.getItem('creoveya_theme');if(t!=='dark'&&t!=='light')t='light';document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
+<script>
+  // Tags <html> before any content paints, so the desktop-app styling applies immediately.
+  if (/CreoveyaDesktopApp/.test(navigator.userAgent)) document.documentElement.classList.add('desktop-app');
+</script>
+<title>Sign In — Creoveya</title>
+<meta name="description" content="Sign in to your Creoveya AI Live Studio account.">
+<link rel="canonical" href="https://creoveya.com/login.html">
+<!-- Open Graph / WhatsApp Link Preview -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Sign In — Creoveya">
+<meta property="og:description" content="Sign in to your Creoveya AI Live Studio account.">
+<meta property="og:url" content="https://creoveya.com/login.html">
+<meta property="og:image" content="https://creoveya.com/img/og-preview.jpg">
+<meta property="og:image:type" content="image/jpeg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Creoveya — Go live as anyone">
+<meta property="og:site_name" content="Creoveya">
+<meta property="og:locale" content="en_US">
+<!-- Twitter compatibility -->
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Sign In — Creoveya">
+<meta name="twitter:description" content="Sign in to your Creoveya AI Live Studio account.">
+<meta name="twitter:image" content="https://creoveya.com/img/og-preview.jpg">
+<meta name="theme-color" content="#1a1714">
+<link rel="icon" href="/img/logo.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/instrument-serif-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/css/style.css?v=4">
+</head>
+<body>
+<nav class="navbar auth-web-nav"><div class="navbar-inner">
+  <a class="brand" href="/"><img src="/img/logo.svg" class="brand-mark" alt="Creoveya">Creoveya</a>
+  <a href="/" class="btn btn-outline btn-sm">Back to Home</a>
+</div></nav>
+
+<div class="auth-shell">
+  <div class="desktop-app-brand">
+    <img src="/img/logo.svg" alt="Creoveya">
+    <div class="desktop-app-brand-text">
+      <strong>Creoveya</strong>
+      <span>AI Live Studio</span>
+    </div>
+  </div>
+  <div class="auth-card" id="authCard" style="visibility:hidden;">
+    <div class="auth-tabs">
+      <div class="auth-tab active" onclick="location.href='/login.html'">Sign In</div>
+      <div class="auth-tab" onclick="location.href='/register.html'">Create Account</div>
+    </div>
+    <h2>Welcome <em>back.</em></h2>
+    <p class="text-muted" style="margin-bottom:22px;">Sign in to your studio.</p>
+    <div class="error-banner" id="err"></div>
+    <p class="success-banner" id="okMsg"></p>
+    <p class="success-banner" id="suspendedMsg" style="background:var(--danger-bg); color:var(--danger);"></p>
+    <form id="loginForm" autocomplete="on">
+      <div class="hp-field" aria-hidden="true"><label for="website">Website</label><input type="text" id="website" name="website" tabindex="-1" autocomplete="off"></div>
+      <div class="form-group">
+        <label for="username">Username or email</label>
+        <input type="text" id="username" name="username" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
+      </div>
+      <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" id="password" name="password" autocomplete="current-password" required>
+      </div>
+      <div class="form-row">
+        <label class="check-label"><input type="checkbox" id="remember"> Remember me</label>
+        <a href="/forgot-password.html" class="link-muted">Forgot password?</a>
+      </div>
+      <div id="captchaMount"></div>
+      <button type="submit" class="btn btn-primary btn-block" id="submitBtn">Sign In</button>
+    </form>
+    <div class="auth-divider hidden" id="googleDivider">or</div>
+    <div id="googleBtnWrap" class="hidden"></div>
+  </div>
+  <p class="desktop-app-footer">Creoveya Desktop</p>
+</div>
+
+<script src="/js/common.js"></script>
+<script src="/js/auth.js"></script>
+<script>
+  // If a valid session already exists (e.g. reopening the desktop app),
+  // skip the form and go straight to the right place.
+  (async () => {
+    const user = await getSession();
+    if (user) { routeAfterLogin(user); return; }
+    document.getElementById('authCard').style.visibility = 'visible';
+  })();
+
+  const params = new URLSearchParams(location.search);
+  if (params.get('suspended')) {
+    const el = document.getElementById('suspendedMsg');
+    el.textContent = 'Your account has been suspended. Contact support if you believe this is a mistake.';
+    el.classList.add('show');
+  }
+  if (params.get('reset')) {
+    const el = document.getElementById('okMsg');
+    el.textContent = 'Password updated. Sign in with your new password.';
+    el.classList.add('show');
+  }
+
+  // Remember me: pre-fills the username on this device next time.
+  const REMEMBER_KEY = 'creoveya_remembered_user';
+  const usernameEl = document.getElementById('username');
+  const rememberEl = document.getElementById('remember');
+  try {
+    const saved = localStorage.getItem(REMEMBER_KEY);
+    if (saved) { usernameEl.value = saved; rememberEl.checked = true; document.getElementById('password').focus(); }
+  } catch (e) { /* storage blocked */ }
+
+  const captcha = initCaptcha(document.getElementById('captchaMount'));
+  const errEl = document.getElementById('err');
+
+  document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    errEl.classList.remove('show');
+    if (!captcha.require()) return showAuthError(errEl, 'Please tick "I\'m not a robot" first.');
+    const btn = document.getElementById('submitBtn');
+    btn.disabled = true; btn.textContent = 'Signing in…';
+    try {
+      const data = await apiFetch('/auth/login', {
+        method: 'POST',
+        body: {
+          username: usernameEl.value,
+          password: document.getElementById('password').value,
+          remember: rememberEl.checked,
+          captchaToken: captcha.token(),
+          website: document.getElementById('website').value,
+        },
+      });
+      try {
+        if (rememberEl.checked) localStorage.setItem(REMEMBER_KEY, usernameEl.value.trim());
+        else localStorage.removeItem(REMEMBER_KEY);
+      } catch (e2) { /* ignore */ }
+      routeAfterLogin(data.user);
+    } catch (err) {
+      showAuthError(errEl, err.message);
+      captcha.reset();
+      btn.disabled = false; btn.textContent = 'Sign In';
+    }
+  });
+
+  initGoogleLogin(document.getElementById('googleBtnWrap'), document.getElementById('googleDivider'), async (credential) => {
+    errEl.classList.remove('show');
+    try {
+      const data = await apiFetch('/auth/google', { method: 'POST', body: { credential, remember: true } });
+      routeAfterLogin(data.user);
+    } catch (err) { showAuthError(errEl, err.message); }
+  });
+</script>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>try{var t=localStorage.getItem('creoveya_theme');if(t!=='dark'&&t!=='light')t='light';document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
+<title>Studio — Creoveya</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/img/logo.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/instrument-serif-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/css/style.css?v=4">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="app-sidebar" id="sidebar"></aside>
+
+  <main class="app-main">
+    <div class="app-topbar">
+      <div class="flex items-center gap-12">
+        <button class="menu-toggle" id="menuToggle">☰</button>
+        <div><h1>Creoveya Studio</h1><p class="text-muted">Preview your camera, choose your look, then go live.</p></div>
+      </div>
+      <div id="topbarRight"></div>
+    </div>
+
+    <div class="app-content">
+      <div class="error-banner" id="usageBanner" style="background:var(--warning-bg); color:var(--warning);"></div>
+
+      <div class="camera-wrap" id="cameraWrap">
+        <button class="exit-fullscreen-btn" id="exitFullscreenBtn" type="button">✕ Exit Fullscreen</button>
+        <div class="camera-overlay-top">
+          <span class="pill-badge" id="liveBadge">IDLE</span>
+          <div class="flex gap-8 items-center">
+            <span class="pill-badge" id="timerBadge">00:00</span>
+            <button class="icon-btn sm" id="fullscreenBtn" title="Toggle fullscreen">⤢</button>
+          </div>
+        </div>
+        <video id="localPreview" autoplay muted playsinline style="display:none; width:100%; height:100%; object-fit:cover;"></video>
+        <video id="transformedFeed" autoplay playsinline style="display:none; width:100%; height:100%; object-fit:cover;"></video>
+        <div class="camera-placeholder" id="cameraPlaceholder">
+          <span>📷</span>
+          <span>Camera preview is off</span>
+          <button class="btn btn-outline btn-sm" id="previewBtn">Preview Camera</button>
+        </div>
+        <div class="camera-overlay-bottom hidden" id="cameraControls">
+          <button class="icon-btn" id="micBtn" title="Toggle microphone">🎙️</button>
+          <button class="icon-btn" id="mirrorBtn" title="Mirror preview">⇋</button>
+        </div>
+      </div>
+
+      <div class="golive-bar">
+        <button class="btn btn-primary" id="goLiveBtn">🔴 Go Live</button>
+        <button class="btn btn-outline" id="shareBtn">🎥 Get OBS Browser Source Link</button>
+      </div>
+
+      <div class="card mt-16" style="margin-top:14px;">
+        <h3 style="margin-bottom:4px;">Devices</h3>
+        <p class="text-muted" style="margin:0 0 14px; font-size:.85rem;">
+          Pick which physical camera and microphone to use — useful if you have more than one connected,
+          including a capture card or an OBS Virtual Camera as input.
+        </p>
+        <div class="grid grid-2">
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="cameraSelect">Camera</label>
+            <select id="cameraSelect"><option value="">Default camera</option></select>
+          </div>
+          <div class="form-group" style="margin-bottom:0;">
+            <label for="micSelect">Microphone</label>
+            <select id="micSelect"><option value="">Default microphone</option></select>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center mt-16" style="flex-wrap:wrap; gap:12px;">
+        <div>
+          <h3 style="margin-bottom:2px;">Choose your look</h3>
+          <p class="text-muted" style="margin:0; font-size:.85rem;">Pick a preset or upload a reference face.</p>
+        </div>
+        <button class="btn btn-outline btn-sm" id="addLookBtn">+ Add Face / Select Face</button>
+      </div>
+      <div class="look-grid mt-16" id="lookGrid"></div>
+
+      <div class="card mt-24">
+        <label for="promptInput">Custom transformation prompt (optional)</label>
+        <textarea id="promptInput" placeholder="e.g. Transform my face into a cinematic high-fidelity 3D cyberpunk avatar with ambient neon highlights."></textarea>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<!-- Add Look modal -->
+<div class="modal-backdrop" id="lookModalBackdrop">
+  <div class="modal">
+    <div class="modal-header"><h3>Add a look</h3><button class="modal-close" id="lookModalClose">×</button></div>
+    <div class="error-banner" id="lookError"></div>
+    <form id="lookForm">
+      <div class="form-group"><label for="lookName">Name</label><input type="text" id="lookName" required></div>
+      <div class="form-group"><label for="lookImage">Reference face image</label><input type="file" id="lookImage" accept="image/*" required></div>
+      <div class="form-group"><label for="lookPrompt">Prompt (optional)</label><textarea id="lookPrompt" placeholder="Describe the transformation style"></textarea></div>
+      <button type="submit" class="btn btn-primary btn-block" id="lookSubmitBtn">Save Look</button>
+    </form>
+  </div>
+</div>
+
+<!-- OBS link modal -->
+<div class="modal-backdrop" id="obsModalBackdrop">
+  <div class="modal">
+    <div class="modal-header"><h3>OBS Browser Source</h3><button class="modal-close" id="obsModalClose">×</button></div>
+    <p class="text-muted" style="font-size:.88rem;">
+      In OBS Studio: <strong>Sources → + → Browser</strong>, paste this URL, and set the width/height to
+      match your stream (e.g. 1280×720). The first time it loads, right-click the source and choose
+      <strong>Interact</strong> to log in — OBS remembers it after that.
+    </p>
+    <div class="form-group">
+      <label for="obsLinkInput">Browser Source URL</label>
+      <input type="text" id="obsLinkInput" readonly onclick="this.select()">
+    </div>
+    <button class="btn btn-primary btn-block" id="obsCopyBtn" type="button">Copy Link</button>
+  </div>
+</div>
+
+<script src="/js/common.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/studio.js"></script>
+</body>
+</html>

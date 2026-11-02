@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script>try{var t=localStorage.getItem('creoveya_theme');if(t!=='dark'&&t!=='light')t='light';document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
+<title>Dashboard — Creoveya</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="/img/logo.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/inter-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/instrument-serif-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/css/style.css?v=4">
+</head>
+<body>
+<div class="app-shell">
+  <aside class="app-sidebar" id="sidebar"></aside>
+
+  <main class="app-main">
+    <div class="app-topbar">
+      <div class="flex items-center gap-12">
+        <button class="menu-toggle" id="menuToggle">☰</button>
+        <div><h1>Welcome back<span id="welcomeName"></span></h1><p class="text-muted">Here's what's happening with your account.</p></div>
+      </div>
+      <div id="topbarRight"></div>
+    </div>
+
+    <div class="app-content">
+      <div class="grid grid-4 mb-16">
+        <div class="stat-card"><div class="label">Credits Remaining</div><div class="value" id="statCredits">—</div></div>
+        <div class="stat-card"><div class="label">Streaming Time Left</div><div class="value" id="statMinutes">—</div></div>
+        <div class="stat-card"><div class="label">Account Status</div><div class="value" id="statStatus" style="font-size:1.1rem;">—</div></div>
+        <div class="stat-card"><div class="label">Looks Saved</div><div class="value" id="statLooks">—</div></div>
+      </div>
+
+      <div class="card mb-16 hidden" id="lowBalanceCard" style="border-color:var(--warning);">
+        <span class="badge badge-warning">Low balance</span>
+        <p class="mt-8">You're running low on streaming time. <a href="/payment-topup.html">Purchase another credit plan</a> to keep going live without interruption.</p>
+      </div>
+
+      <div class="card" id="credits">
+        <div class="flex justify-between items-center mb-16">
+          <h3 style="margin:0;">Quick Actions</h3>
+        </div>
+        <div class="flex gap-12" style="flex-wrap:wrap;">
+          <a href="/studio" class="btn btn-primary">🎬 Go to Studio</a>
+          <a href="/payment-topup.html" class="btn btn-outline">💳 Buy More Credits</a>
+        </div>
+      </div>
+
+      <div class="card mt-24" id="history">
+        <h3>Payment History</h3>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Plan</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+            <tbody id="historyBody"><tr><td colspan="4" class="text-muted">Loading…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card mt-24" id="profile" style="max-width: 480px;">
+        <h3>My Profile</h3>
+        <p class="text-muted">Confirm your current password to change your username, email, or password.</p>
+        <div class="error-banner" id="profileError"></div>
+        <div class="success-banner" id="profileSuccess"></div>
+        <form id="profileForm">
+          <div class="form-group"><label for="profUsername">Username</label><input type="text" id="profUsername" required></div>
+          <div class="form-group"><label for="profEmail">Email</label><input type="email" id="profEmail"></div>
+          <div class="form-group"><label for="profNewPassword">New Password (leave blank to keep current)</label><input type="password" id="profNewPassword" minlength="8" placeholder="At least 8 characters"></div>
+          <div class="form-group"><label for="profCurrentPassword">Current Password (required to save)</label><input type="password" id="profCurrentPassword" required></div>
+          <button type="submit" class="btn btn-primary btn-block">Save Changes</button>
+        </form>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script src="/js/common.js"></script>
+<script src="/js/sidebar.js"></script>
+<script src="/js/dashboard.js"></script>
+</body>
+</html>
